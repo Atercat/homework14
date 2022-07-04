@@ -26,6 +26,22 @@ provider "aws" {
   # Configuration options
 }
 
+resource "aws_s3_bucket" "bucket" {
+  bucket = "${var.project_name}-bucket"
+}
+
+resource "aws_s3_object_copy" "test" {
+  bucket = aws_s3_bucket.bucket.bucket
+  key    = "index.html"
+  source = "files/index.html"
+
+  grant {
+    uri         = "http://acs.amazonaws.com/groups/global/AllUsers"
+    type        = "Group"
+    permissions = ["READ"]
+  }
+}
+
 resource "aws_key_pair" "deployer" {
   key_name   = "${var.project_name}-key"
   public_key = file(var.public_key)
@@ -110,17 +126,6 @@ resource "aws_instance" "build" {
     set -ex
     sudo apt update -y && sudo apt install nginx -y
   EOF
-
-  provisioner "file" {
-    source      = "files/index.html"
-    destination = "/var/www/html/index.nginx-debian.html"
-    connection {
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = file(var.private_key)
-      host        = "${self.public_dns}"
-    }
-  }
 
   tags = {
     Name = "Builder"
