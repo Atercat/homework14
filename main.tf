@@ -52,6 +52,32 @@ resource "aws_security_group" "allow_ssh" {
   }
 }
 
+resource "aws_security_group" "allow_http" {
+  name        = "${var.project_name}-http"
+  description = "Allow HTTP inbound traffic"
+
+  ingress {
+    description      = "HTTP"
+    from_port        = 0
+    to_port          = 80
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = {
+    Name = "allow_http"
+  }
+}
+
 data "aws_ami" "ubuntu" {
   most_recent = true
 
@@ -72,7 +98,14 @@ resource "aws_instance" "build" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = "t3.micro"
   key_name      = "${var.project_name}-key"
-  security_groups = ["${var.project_name}-ssh"]
+  security_groups = ["${var.project_name}-ssh", "${var.project_name}-http"]
+
+  user_data = <<-EOF
+    #!/bin/bash
+    set -ex
+    sudo apt update -y &&
+    sudo apt install nginx -y &&
+  EOF
 
   tags = {
     Name = "Builder"
