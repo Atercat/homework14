@@ -7,8 +7,18 @@ terraform {
   }
 }
 
+variable "public_key" {
+  type = string
+  default = "~/.ssh/id_rsa.pub"
+}
+
 provider "aws" {
   # Configuration options
+}
+
+resource "aws_key_pair" "deployer" {
+  key_name   = "deployer-key"
+  public_key = file(var.public_key)
 }
 
 data "aws_ami" "ubuntu" {
@@ -30,9 +40,9 @@ data "aws_ami" "ubuntu" {
 resource "aws_instance" "build" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = "t3.micro"
+  key_name      = "deployer-key"
 
   tags = {
-    Name = "HelloWorld"
+    Name = "Builder"
   }
 }
-
