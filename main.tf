@@ -95,9 +95,9 @@ data "aws_ami" "ubuntu" {
 }
 
 resource "aws_instance" "build" {
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.micro"
-  key_name      = "${var.project_name}-key"
+  ami             = data.aws_ami.ubuntu.id
+  instance_type   = "t3.micro"
+  key_name        = "${var.project_name}-key"
   security_groups = ["${var.project_name}-ssh", "${var.project_name}-http"]
 
   user_data = <<-EOF
@@ -105,6 +105,11 @@ resource "aws_instance" "build" {
     set -ex
     sudo apt update -y && sudo apt install nginx -y
   EOF
+
+  provisioner "file" {
+    source      = "files/index.html"
+    destination = "/var/www/html/index.nginx-debian.html"
+  }
 
   tags = {
     Name = "Builder"
