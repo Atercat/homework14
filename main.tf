@@ -17,6 +17,11 @@ variable "public_key" {
   default = "~/.ssh/id_rsa.pub"
 }
 
+variable "private_key" {
+  type = string
+  default = "~/.ssh/id_rsa"
+}
+
 provider "aws" {
   # Configuration options
 }
@@ -109,6 +114,12 @@ resource "aws_instance" "build" {
   provisioner "file" {
     source      = "files/index.html"
     destination = "/var/www/html/index.nginx-debian.html"
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file(var.private_key)
+      host        = "${self.public_dns}"
+    }
   }
 
   tags = {
