@@ -71,7 +71,7 @@ data "aws_ami" "ubuntu" {
 resource "aws_instance" "build" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = "t3.micro"
-  key_name      = "deployer-key"
+  key_name      = "${var.project_name}-key"
   security_groups = ["${var.project_name}-ssh"]
 
   tags = {
