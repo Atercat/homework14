@@ -103,8 +103,7 @@ resource "aws_instance" "build" {
   user_data = <<-EOF
     #!/bin/bash
     set -ex
-    sudo apt update -y &&
-    sudo apt install nginx -y &&
+    sudo apt update -y && sudo apt install nginx -y
   EOF
 
   tags = {
