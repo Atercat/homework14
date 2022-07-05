@@ -30,16 +30,17 @@ resource "aws_s3_bucket" "bucket" {
   bucket = "${var.project_name}-bucket"
 }
 
-resource "aws_s3_object_copy" "test" {
+resource "aws_s3_bucket_acl" "bucket_acl" {
+  bucket = aws_s3_bucket.bucket.bucket
+  acl    = "public-read"
+}
+
+resource "aws_s3_object" "index_page" {
   bucket = aws_s3_bucket.bucket.bucket
   key    = "index.html"
   source = "files/index.html"
-
-  grant {
-    uri         = "http://acs.amazonaws.com/groups/global/AllUsers"
-    type        = "Group"
-    permissions = ["READ"]
-  }
+  acl    = "public-read"
+  etag   = filemd5("files/index.html")
 }
 
 resource "aws_key_pair" "deployer" {
@@ -124,10 +125,14 @@ resource "aws_instance" "build" {
   user_data = <<-EOF
     #!/bin/bash
     set -ex
-    sudo apt update -y && sudo apt install nginx -y
+    sudo apt update -y && \
+      sudo apt install nginx -y && \
+      sudo wget https://myboxfuse-bucket.s3.eu-north-1.amazonaws.com/index.html -O /var/www/html/index.nginx-debian.html
   EOF
 
   tags = {
     Name = "Builder"
   }
+
+  depends_on = [aws_s3_bucket.bucket, aws_s3_object.index_page, aws_s3_bucket_acl.bucket_acl]
 }
