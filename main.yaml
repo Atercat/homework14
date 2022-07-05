@@ -16,13 +16,29 @@
     - build
     - run
 
+- name: Fill the hosts
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Add build host
+      add_host:
+        hostname: "{{ build_ip }}"
+        groups: build
+      tags: build
+
+    - name: Add run host
+      add_host:
+        hostname: "{{ run_ip }}"
+        groups: run
+      tags: run
+  tags:
+    - build
+    - run
+
 - name: Prepare nodes
   hosts:
-    build:
-      ansible_host: "{{ build_ip }}"
-    run:
-      ansible_host: "{{ run_ip }}"
-
+    - build
+    - run
   become: yes
   tasks:
     - name: Ensure Docker is installed
@@ -42,9 +58,7 @@
     - run
 
 - name: Build the App
-  hosts:
-    build:
-      ansible_host: "{{ build_ip }}"
+  hosts: build
   become: yes
   vars:
     repo: https://github.com/boxfuse/boxfuse-sample-java-war-hello.git
@@ -100,9 +114,7 @@
   tags: build
 
 - name: Run the App
-  hosts:
-    run:
-      ansible_host: "{{ run_ip }}"
+  hosts: run
   become: yes
   tasks:
     - name: Remove old container

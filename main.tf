@@ -94,7 +94,7 @@ resource "aws_instance" "builder" {
   }
 
   provisioner "local-exec" {
-    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ubuntu -i '${self.public_ip}' --tags build main.yaml"
+    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ubuntu -e 'build_ip=${self.public_ip}' --tags build main.yaml"
   }
 }
 
@@ -109,6 +109,6 @@ resource "aws_instance" "runner" {
   }
 
   provisioner "local-exec" {
-    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ubuntu -i '${self.public_ip}' --tags run main.yaml"
+    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ubuntu -e 'run_ip=${self.public_ip}' --tags run main.yaml"
   }
 }
