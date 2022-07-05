@@ -26,9 +26,9 @@ resource "aws_key_pair" "deployer" {
   public_key = file(var.public_key)
 }
 
-resource "aws_security_group" "allow_ssh" {
-  name        = "${var.project_name}-ssh"
-  description = "Allow SSH inbound traffic"
+resource "aws_security_group" "default" {
+  name        = "${var.project_name}-default"
+  description = "Allow SSH inbound and all outbound traffic"
 
   ingress {
     description      = "SSH"
@@ -40,6 +40,7 @@ resource "aws_security_group" "allow_ssh" {
   }
 
   egress {
+    description      = "Allow all"
     from_port        = 0
     to_port          = 0
     protocol         = "-1"
@@ -48,7 +49,21 @@ resource "aws_security_group" "allow_ssh" {
   }
 
   tags = {
-    Name = "allow_ssh"
+    Name = "${var.project_name}-default"
+  }
+}
+
+resource "aws_security_group" "tomcat" {
+  name        = "${var.project_name}-tomcat"
+  description = "Allow Tomcat inbound traffic on port 8080"
+
+  ingress {
+    description      = "Tomcat"
+    from_port        = 0
+    to_port          = 8080
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
   }
 }
 
@@ -68,13 +83,24 @@ data "aws_ami" "ubuntu" {
   owners = ["099720109477"] # Canonical
 }
 
-resource "aws_instance" "build" {
+resource "aws_instance" "builder" {
   ami             = data.aws_ami.ubuntu.id
   instance_type   = "t3.micro"
-  key_name        = "${var.project_name}-key"
-  security_groups = ["${var.project_name}-ssh"]
+  key_name        = aws_key_pair.deployer.key_name
+  security_groups = [aws_security_group.default.name]
 
   tags = {
-    Name = "Builder"
+    Name = "${var.project_name}-builder"
+  }
+}
+
+resource "aws_instance" "runner" {
+  ami             = data.aws_ami.ubuntu.id
+  instance_type   = "t3.micro"
+  key_name        = aws_key_pair.deployer.key_name
+  security_groups = [aws_security_group.default.name, aws_security_group.tomcat.name]
+
+  tags = {
+    Name = "${var.project_name}-runner"
   }
 }
