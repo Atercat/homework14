@@ -1,19 +1,19 @@
 terraform {
   required_providers {
     aws = {
-      source = "hashicorp/aws"
+      source  = "hashicorp/aws"
       version = "4.21.0"
     }
   }
 }
 
 variable "project_name" {
-  type = string
+  type    = string
   default = "myboxfuse"
 }
 
 variable "public_key" {
-  type = string
+  type    = string
   default = "~/.ssh/id_rsa.pub"
 }
 
@@ -69,9 +69,9 @@ data "aws_ami" "ubuntu" {
 }
 
 resource "aws_instance" "build" {
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.micro"
-  key_name      = "${var.project_name}-key"
+  ami             = data.aws_ami.ubuntu.id
+  instance_type   = "t3.micro"
+  key_name        = "${var.project_name}-key"
   security_groups = ["${var.project_name}-ssh"]
 
   tags = {
