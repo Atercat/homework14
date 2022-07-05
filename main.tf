@@ -92,10 +92,6 @@ resource "aws_instance" "builder" {
   tags = {
     Name = "${var.project_name}-builder"
   }
-
-  provisioner "local-exec" {
-    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ubuntu -e 'build_ip=${self.public_ip}' -e 'run_ip=${self.public_ip}' --tags build main.yaml"
-  }
 }
 
 resource "aws_instance" "runner" {
@@ -107,12 +103,16 @@ resource "aws_instance" "runner" {
   tags = {
     Name = "${var.project_name}-runner"
   }
+}
 
+resource "null_resource" "playbook" {
   provisioner "local-exec" {
-    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ubuntu -e 'build_ip=${self.public_ip}' -e 'run_ip=${self.public_ip}' --tags run main.yaml"
+    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ubuntu -e 'build_ip=${aws_instance.builder.public_ip}' -e 'run_ip=${aws_instance.runner.public_ip}' main.yaml"
   }
+  depends_on = [aws_instance.runner, aws_instance.builder]
 }
 
 output "web_page_address" {
   value = "http://${aws_instance.runner.public_ip}:8080/hello-1.0"
+  depends_on = [null_resource.playbook]
 }
