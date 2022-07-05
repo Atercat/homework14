@@ -140,8 +140,4 @@
         image: "{{ hostvars.localhost.repo_facts.repository.repositoryUri }}"
         ports: "8080:8080"
         recreate: yes
-
-    # Print the app url
-    - debug:
-        msg: "http://{{inventory_hostname}}:8080/hello-1.0"
   tags: run
