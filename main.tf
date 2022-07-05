@@ -136,3 +136,7 @@ resource "aws_instance" "build" {
 
   depends_on = [aws_s3_bucket.bucket, aws_s3_object.index_page, aws_s3_bucket_acl.bucket_acl]
 }
+
+output "web_page_address" {
+  value = "http://${aws_instance.build.public_ip}"
+}
