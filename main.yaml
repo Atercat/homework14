@@ -1,0 +1,135 @@
+---
+- name: Preparing to use the ECR repository
+  hosts: localhost
+  gather_facts: false
+  vars:
+    app_name: myboxfuse
+  tasks:
+    - name: Ensure the repository is present
+      ecs_ecr: "name={{ app_name }}"
+      register: repo_facts
+
+    - name: Get ECR password
+      command: aws ecr get-login-password --region eu-north-1
+      register: repo_password
+  tags:
+    - build
+    - run
+
+- name: Prepare nodes
+  hosts:
+    build:
+      ansible_host: "{{ build_ip }}"
+    run:
+      ansible_host: "{{ run_ip }}"
+
+  become: yes
+  tasks:
+    - name: Ensure Docker is installed
+      apt:
+        name:
+          - docker.io
+          - python3-docker
+        state: present
+        update_cache: yes
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+  tags:
+    - build
+    - run
+
+- name: Build the App
+  hosts:
+    build:
+      ansible_host: "{{ build_ip }}"
+  become: yes
+  vars:
+    repo: https://github.com/boxfuse/boxfuse-sample-java-war-hello.git
+    repo_path: /var/repo
+    app: hello-1.0
+    war_path: "{{ repo_path }}/target/{{ app }}.war"
+    file_to_change: src/main/webapp/index.jsp
+  tasks:
+    - name: Clone git repo
+      git: repo={{ repo }} dest={{ repo_path }} force=yes
+
+    - name: LineInFile example
+      lineinfile:
+        path: "{{ repo_path }}/{{ file_to_change }}"
+        regexp: "<h1>(.*)</h1>"
+        line: "<h1>Built on {{ ansible_lsb.description }} with Jenkins</h1>"
+
+    - name: Ensure previously built artifact is absent
+      file: path={{ war_path }} state=absent
+
+    - name: Start Maven container and build artifact
+      docker_container:
+        name: builder
+        image: public.ecr.aws/docker/library/maven:3.6-openjdk-8
+        volumes:
+          "{{ repo_path }}:/git"
+        command: mvn -f /git/pom.xml clean package
+        restart: yes
+        detach: no
+
+    - name: Ensure newly built artifact is present
+      file: path={{ war_path }}
+
+    - name: Copy Dockerfile to Build-node
+      copy: src=files/Dockerfile dest={{ repo_path }}
+
+    - name: Login to ECR
+      docker_login:
+        registry: "{{ hostvars.localhost.repo_facts.repository.repositoryUri }}"
+        username: AWS
+        password: "{{ hostvars.localhost.repo_password.stdout }}"
+        reauthorize: true
+
+    - name: Build production image and push it to ECR
+      docker_image:
+        name: "{{ hostvars.localhost.repo_facts.repository.repositoryUri }}"
+        source: build
+        build:
+          path: "{{ repo_path }}"
+          args:
+            artifact: target/{{ app }}.war
+        push: yes
+  tags: build
+
+- name: Run the App
+  hosts:
+    run:
+      ansible_host: "{{ run_ip }}"
+  become: yes
+  tasks:
+    - name: Remove old container
+      docker_container:
+        name: run
+        state: absent
+
+    - name: Remove old image
+      docker_image:
+        name: "{{ hostvars.localhost.repo_facts.repository.repositoryUri }}"
+        state: absent
+
+    - name: Login to ECR
+      docker_login:
+        registry: "{{ hostvars.localhost.repo_facts.repository.repositoryUri }}"
+        username: AWS
+        password: "{{ hostvars.localhost.repo_password.stdout }}"
+        reauthorize: true
+
+    - name: Run app container at production server
+      docker_container:
+        name: run
+        image: "{{ hostvars.localhost.repo_facts.repository.repositoryUri }}"
+        ports: "8080:8080"
+        recreate: yes
+
+    # Print the app url
+    - debug:
+        msg: "http://{{inventory_hostname}}:8080/hello-1.0"
+  tags: run

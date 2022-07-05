@@ -92,6 +92,10 @@ resource "aws_instance" "builder" {
   tags = {
     Name = "${var.project_name}-builder"
   }
+
+  provisioner "local-exec" {
+    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ubuntu -i '${self.public_ip}' --tags build main.yml"
+  }
 }
 
 resource "aws_instance" "runner" {
@@ -102,5 +106,9 @@ resource "aws_instance" "runner" {
 
   tags = {
     Name = "${var.project_name}-runner"
+  }
+
+  provisioner "local-exec" {
+    command = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -u ubuntu -i '${self.public_ip}' --tags run main.yml"
   }
 }
